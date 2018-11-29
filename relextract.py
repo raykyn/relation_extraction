@@ -99,10 +99,12 @@ def check_train_data(train_data, train_labels, verbose=True):
 def ExractSimpleFeatures(data, verbose=True):
     featurized_data = []
     for instance in data:
-        featurized_instance = {'mid_words':'', 'distance':np.inf}
+        featurized_instance = {'left_words':'', 'right_words':'', 'mid_words':'', 'distance':np.inf}
         for s in instance.snippet:
             if len(s.middle.split()) < featurized_instance['distance']:
-                featurized_instance['mid_words'] = s.middle
+                featurized_instance['left_words'] = s.left.lower()
+                featurized_instance['right_words'] = s.right.lower()
+                featurized_instance['mid_words'] = s.middle.lower()
                 featurized_instance['distance'] = len(s.middle.split())
         featurized_data.append(featurized_instance)
     if verbose:
@@ -223,6 +225,7 @@ if __name__ == "__main__":
     # can be replace with argparse later
     verbose = False
     analysis = True
+    evaluate = True
     train_file = 'train.json.txt'
     test_file = 'test-covered.json.txt'
     train_data, train_labels = load_data(train_file, verbose)
@@ -237,7 +240,7 @@ if __name__ == "__main__":
     train_labels_featurized = le.fit_transform(train_labels)
     # Fit model one vs rest logistic regression    
     clf = make_pipeline(DictVectorizer(), LogisticRegression())
-    evaluateCV(clf, le, train_data_featurized, train_labels_featurized, verbose)
+    evaluateCV(clf, le, train_data_featurized, train_labels_featurized, evaluate)
     evaluateCV_check(clf,train_data_featurized,train_labels_featurized, verbose)
     # Fit final model on the full train data
     predict(clf, test_file)
