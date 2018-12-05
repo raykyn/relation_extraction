@@ -252,32 +252,32 @@ def main():
     
         ('union', FeatureUnion(
             transformer_list=[
-                #~ ('mid_bow', Pipeline([
-                    #~ ('selector', ItemSelector(key='middle')),
-                    #~ ('countvectorizer', CountVectorizer()),
-                #~ ])),
-                
-                #~ ('left_bow', Pipeline([
-                    #~ ('selector', ItemSelector(key='left')),
-                    #~ ('countvectorizer', CountVectorizer()),
-                #~ ])),
-                
-                #~ ('right_bow', Pipeline([
-                    #~ ('selector', ItemSelector(key='right')),
-                    #~ ('countvectorizer', CountVectorizer()),
-                #~ ])),
-                
-                ('bow', Pipeline([
-                    ('selector', ItemSelector(key='complete')),
+                ('mid_bow', Pipeline([
+                    ('selector', ItemSelector(key='middle')),
                     ('countvectorizer', CountVectorizer()),
                 ])),
+                
+                ('left_bow', Pipeline([
+                    ('selector', ItemSelector(key='left')),
+                    ('countvectorizer', CountVectorizer()),
+                ])),
+                
+                ('right_bow', Pipeline([
+                    ('selector', ItemSelector(key='right')),
+                    ('countvectorizer', CountVectorizer()),
+                ])),
+                
+                #~ ('bow', Pipeline([
+                    #~ ('selector', ItemSelector(key='complete')),
+                    #~ ('countvectorizer', CountVectorizer()),
+                #~ ])),
             ],
             
             transformer_weights={
-                #~ 'mid_bow': 0.0,
-                #~ 'left_bow': 0.0,
-                #~ 'right_bow': 0.0,
-                'bow': 1.0,
+                'mid_bow': 1.0,
+                'left_bow': 1.0,
+                'right_bow': 1.0,
+                #~ 'bow': 1.0,
             },
         )),
         

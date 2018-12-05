@@ -68,12 +68,18 @@ class SubjectBodyExtractor(BaseEstimator, TransformerMixin):
                                dtype=[('left', object), ('middle', object), ('right', object),
                                 ('complete', object)])
         for i, text in enumerate(posts):
+            left = []
+            right = []
+            middle = []
             context = []
             for s in text.snippet:
-                #~ features['left'][i] = s.left
-                #~ features['middle'][i] = s.middle
-                #~ features['right'][i] = s.right
+                left.append(s.left)
+                right.append(s.right)
+                middle.append(s.middle)
                 context.append(' '.join((s.left.lower(), s.middle.lower(), s.right.lower())))
+            features['left'][i] = " ".join(left)
+            features['middle'][i] = " ".join(middle)
+            features['right'][i] = " ".join(right)
             features['complete'][i] = " ".join(context)
 
         return features
