@@ -7,7 +7,8 @@ import os
 import json
 
 from collections import Counter, defaultdict, namedtuple
-from sklearn.feature_extraction import DictVectorizer
+#~ from sklearn.feature_extraction import DictVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_fscore_support, fbeta_score, make_scorer
 from sklearn.pipeline import make_pipeline
@@ -96,23 +97,43 @@ def check_train_data(train_data, train_labels, verbose=True):
 ###########################################################################################
 
 # Extract two simple features
-def ExractSimpleFeatures(data, verbose=True):
-    featurized_data = []
+#~ def ExtractSimpleFeatures(data, verbose=True):
+    #~ featurized_data = []
+    #~ for instance in data:
+        #~ featurized_instance = {'left_words':'', 'right_words':'', 'mid_words':'', 'distance':np.inf}
+        #~ for s in instance.snippet:
+            #~ featurized_instance['left_words'] = s.left.lower()
+            #~ featurized_instance['right_words'] = s.right.lower()
+            #~ if len(s.middle.split()) < featurized_instance['distance']:
+                #~ featurized_instance['mid_words'] = s.middle.lower()
+                #~ featurized_instance['distance'] = len(s.middle.split())
+        #~ featurized_data.append(featurized_instance)
+    #~ if verbose:
+        #~ print(len(data))
+        #~ print(len(featurized_data))
+        #~ print(data[0])
+        #~ print(featurized_data[0])
+    #~ return featurized_data
+    
+    
+def SelectContext(data, verbose=True):
+    only_context_data = []
     for instance in data:
-        featurized_instance = {'left_words':'', 'right_words':'', 'mid_words':'', 'distance':np.inf}
+        instance_context = []
         for s in instance.snippet:
-            if len(s.middle.split()) < featurized_instance['distance']:
-                featurized_instance['left_words'] = s.left.lower()
-                featurized_instance['right_words'] = s.right.lower()
-                featurized_instance['mid_words'] = s.middle.lower()
-                featurized_instance['distance'] = len(s.middle.split())
-        featurized_data.append(featurized_instance)
+            #~ context = ' '.join((s.left, s.middle, s.right))
+            instance_context.append(s.left.lower())
+            instance_context.append(s.middle.lower())
+            instance_context.append(s.right.lower())
+
+        only_context_data.append(' '.join(instance_context))
     if verbose:
         print(len(data))
-        print(len(featurized_data))
+        print(len(only_context_data))
         print(data[0])
-        print(featurized_data[0])
-    return featurized_data
+        print(only_context_data[0])
+    return only_context_data
+
     
     
 ##################################################################################################
@@ -145,7 +166,7 @@ def average_results(results):
     
 def evaluateCV(classifier, label_encoder, X, y, verbose=True):
     results = {}
-    for rel in le.classes_:
+    for rel in label_encoder.classes_:
             results[rel] = []
     if verbose:
         print_statistics_header()
@@ -154,7 +175,7 @@ def evaluateCV(classifier, label_encoder, X, y, verbose=True):
         #print("TRAIN:", train_index, "TEST:", test_index)
         X_train, X_test = [X[i] for i in train_index], [X[i] for i in test_index]
         y_train, y_test = [y[i] for i in train_index], [y[i] for i in test_index]
-        clf.fit(X_train, y_train)
+        classifier.fit(X_train, y_train)
         pred_labels = classifier.predict(X_test)
         stats = precision_recall_fscore_support(y_test, pred_labels, beta=0.5)
         #print(stats)
@@ -187,13 +208,13 @@ def evaluateCV_check(classifier, X, y, verbose=True):
 # 4. TEST PREDICTIONS and ANALYSIS
 #########################################################################################
 
-def predict(clf, test_file):
+def predict(clf, test_file, train_data_featurized, train_labels_featurized, le):
     # Fit final model on the full train data
     clf.fit(train_data_featurized, train_labels_featurized)
 
     # Predict on test set
     test_data, test_labels = load_data(test_file, verbose=False)
-    test_data_featurized = ExractSimpleFeatures(test_data, verbose=False)
+    test_data_featurized = SelectContext(test_data, verbose=False)
     test_label_predicted = clf.predict(test_data_featurized)
     # Deprecation warning explained: https://stackoverflow.com/questions/49545947/sklearn-deprecationwarning-truth-value-of-an-array
     test_label_predicted_decoded = le.inverse_transform(test_label_predicted)
@@ -207,7 +228,8 @@ def predict(clf, test_file):
 # !! Make changes in this function when you change the pipleine!!
 def printNMostInformative(classifier,label_encoder,N):
     """Prints features with the highest coefficient values, per class"""
-    feature_names = classifier.named_steps['dictvectorizer'].get_feature_names()
+    #~ feature_names = classifier.named_steps['dictvectorizer'].get_feature_names()
+    feature_names = classifier.named_steps['countvectorizer'].get_feature_names()
 
     coef = classifier.named_steps['logisticregression'].coef_    
     print(coef.shape)
@@ -218,10 +240,10 @@ def printNMostInformative(classifier,label_encoder,N):
         top_features = coefs_with_fns[-N:]
         print("\nClass {} best: ".format(rel))
         for feat in top_features:
-            print(feat)        
-        
-
-if __name__ == "__main__":
+            print(feat)  
+            
+            
+def main():
     # can be replace with argparse later
     verbose = False
     analysis = True
@@ -234,20 +256,25 @@ if __name__ == "__main__":
         print_stats(train_labels)
     check_train_data(train_data, train_labels, verbose)
     # Transform dataset to features
-    train_data_featurized = ExractSimpleFeatures(train_data, verbose)
+    #~ train_data_featurized = ExtractSimpleFeatures(train_data, verbose)
+    train_data_featurized = SelectContext(train_data)
     # Transform labels to nimeric values
     le = LabelEncoder()
     train_labels_featurized = le.fit_transform(train_labels)
     # Fit model one vs rest logistic regression    
-    clf = make_pipeline(DictVectorizer(), LogisticRegression())
+    clf = make_pipeline(CountVectorizer(), LogisticRegression())
     evaluateCV(clf, le, train_data_featurized, train_labels_featurized, evaluate)
     evaluateCV_check(clf,train_data_featurized,train_labels_featurized, verbose)
     # Fit final model on the full train data
-    predict(clf, test_file)
+    predict(clf, test_file, train_data_featurized, train_labels_featurized, le)
     if analysis:
         print("Top features used to predict: ")
         # show the top features
         printNMostInformative(clf,le,3)
+        
+
+if __name__ == "__main__":
+    main()
 
 
 
