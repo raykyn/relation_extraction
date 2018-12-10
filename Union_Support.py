@@ -66,20 +66,23 @@ class SubjectBodyExtractor(BaseEstimator, TransformerMixin):
     def transform(self, posts):
         features = np.recarray(shape=(len(posts),),
                                dtype=[('left', object), ('middle', object), ('right', object),
-                                ('complete', object)])
+                                ('complete', object), ('middle_bigrams', object)])
         for i, text in enumerate(posts):
             left = []
             right = []
             middle = []
             context = []
+            bigrams = []
             for s in text.snippet:
                 left.append(s.left)
                 right.append(s.right)
                 middle.append(s.middle)
                 context.append(' '.join((s.left.lower(), s.middle.lower(), s.right.lower())))
+                bigrams.append(s.middle_bigrams)
             features['left'][i] = " ".join(left)
             features['middle'][i] = " ".join(middle)
             features['right'][i] = " ".join(right)
             features['complete'][i] = " ".join(context)
+            features['middle_bigrams'][i] = " ".join(bigrams)
 
         return features

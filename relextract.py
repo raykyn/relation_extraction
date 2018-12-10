@@ -19,6 +19,14 @@ import numpy as np
 from Union_Support import ItemSelector, TextStats, SubjectBodyExtractor
 
 
+def getNGrams(tokenized_corpus, N):
+    """
+    Extract bigrams from a list of tokens. 
+    Returns a list of tuples.
+    """
+    return zip(*[tokenized_corpus[i:] for i in range(N)])
+
+
 ############################################################################################
 # 1. LOAD DATA
 ############################################################################################
@@ -26,7 +34,7 @@ from Union_Support import ItemSelector, TextStats, SubjectBodyExtractor
 PairExample = namedtuple('PairExample',
     'entity_1, entity_2, snippet')
 Snippet = namedtuple('Snippet',
-    'left, mention_1, middle, mention_2, right, direction')
+    'left, mention_1, middle, mention_2, right, direction, middle_bigrams')
 def load_data(file, verbose=True):
     f = open(file,'r', encoding='utf-8')
     data = []
@@ -41,11 +49,14 @@ def load_data(file, verbose=True):
         #'left, mention_1, middle, mention_2, right, direction' for each snippet
         instance_tuple = PairExample(instance['entity_1'],instance['entity_2'],[])
         for snippet in instance['snippet']:
+            middle_bigrams = getNGrams(snippet['middle'].split(), 2)
+            middle_bigrams = [x+"_"+y for x, y in middle_bigrams]
+            middle_bigrams = " ".join(middle_bigrams)
             try:
                 snippet_tuple = Snippet(snippet['left'],snippet['mention_1'],
                                         snippet['middle'], 
                                         snippet['mention_2'],snippet['right'],
-                                        snippet['direction'])
+                                        snippet['direction'], middle_bigrams)
                 instance_tuple.snippet.append(snippet_tuple)
             except:
                 print(instance)
@@ -193,11 +204,13 @@ def evaluateCV_check(classifier, X, y, verbose=True):
 
 def predict(clf, test_file, train_data_featurized, train_labels_featurized, le):
     # Fit final model on the full train data
+    print("fitting")
     clf.fit(train_data_featurized, train_labels_featurized)
 
     # Predict on test set
     test_data, test_labels = load_data(test_file, verbose=False)
     #~ test_data_featurized = SelectContext(test_data, verbose=False)
+    print("predict test")
     test_label_predicted = clf.predict(test_data)
     # Deprecation warning explained: https://stackoverflow.com/questions/49545947/sklearn-deprecationwarning-truth-value-of-an-array
     test_label_predicted_decoded = le.inverse_transform(test_label_predicted)
@@ -252,6 +265,12 @@ def main():
     
         ('union', FeatureUnion(
             transformer_list=[
+                
+                ('mid_bg', Pipeline([
+                    ('selector', ItemSelector(key='middle_bigrams')),
+                    ('countvectorizer', CountVectorizer()),
+                ])),
+            
                 ('mid_bow', Pipeline([
                     ('selector', ItemSelector(key='middle')),
                     ('countvectorizer', CountVectorizer()),
@@ -274,21 +293,22 @@ def main():
             ],
             
             transformer_weights={
-                'mid_bow': 1.0,
+                'mid_bg' : 0.5,
+                'mid_bow': 3.0,
                 'left_bow': 1.0,
                 'right_bow': 1.0,
                 #~ 'bow': 1.0,
             },
         )),
         
-        ('lr', LogisticRegression()),
+        ('lr', LogisticRegression(C=0.15)),
     
     ])
     
     evaluateCV(clf, le, train_data, train_labels_featurized, evaluate)
     evaluateCV_check(clf,train_data,train_labels_featurized, verbose)
     # Fit final model on the full train data
-    #~ predict(clf, test_file, train_data, train_labels_featurized, le)
+    predict(clf, test_file, train_data, train_labels_featurized, le)
     if analysis:
         print("Top features used to predict: ")
         # show the top features
